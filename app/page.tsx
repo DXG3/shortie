@@ -1,6 +1,7 @@
 import { currentProfile, supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 import { Nav } from "@/components/Nav";
 import { PointsChart } from "@/components/PointsChart";
+import { setPointsTarget } from "@/app/actions";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -62,13 +63,30 @@ export default async function Home() {
           </div>
           <div className="card">
             <p className="label">Submitters</p>
-            <ul className="space-y-2 mt-2">
-              {(submitters || []).map((s: any) => (
-                <li key={s.id} className="flex justify-between border-b border-white/5 py-2">
-                  <span className="text-blush">{s.display_name || s.email}</span>
-                  <span className="display text-2xl text-white">{balMap.get(s.id) ?? 0}</span>
-                </li>
-              ))}
+            <ul className="space-y-3 mt-2">
+              {(submitters || []).map((s: any) => {
+                const bal = Number(balMap.get(s.id) ?? 0);
+                const tgt = Number(s.points_target ?? 1);
+                const pct = Math.min(100, Math.max(0, Math.round((bal / Math.max(tgt, 1)) * 100)));
+                return (
+                  <li key={s.id} className="border-b border-white/5 pb-3">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-blush truncate">{s.display_name || s.email}</span>
+                      <span className="display text-2xl text-white">{bal}<span className="text-blush/40 text-base"> / {tgt}</span></span>
+                    </div>
+                    <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                      <div className="h-full bg-rose" style={{ width: `${pct}%` }} />
+                    </div>
+                    <form action={setPointsTarget} className="mt-2 flex items-center gap-2">
+                      <input type="hidden" name="submitter_id" value={s.id} />
+                      <label className="text-blush/60 text-xs">Target</label>
+                      <input name="target" type="number" min={1} defaultValue={tgt}
+                        className="input py-1 w-20 text-sm" />
+                      <button className="btn-ghost py-1 px-3 text-xs">Save</button>
+                    </form>
+                  </li>
+                );
+              })}
               {(submitters || []).length === 0 && (
                 <li className="text-blush/50 text-sm">No submitters yet. <Link href="/admin/invites" className="underline">Invite one.</Link></li>
               )}
@@ -81,7 +99,9 @@ export default async function Home() {
 
   // submitter view
   const { data: balRow } = await admin.from("point_balances").select("balance").eq("submitter_id", me.id).single();
-  const balance = balRow?.balance ?? 0;
+  const balance = Number(balRow?.balance ?? 0);
+  const target = Number(me.points_target ?? 1);
+  const pct = Math.min(100, Math.max(0, Math.round((balance / Math.max(target, 1)) * 100)));
   const { data: history } = await sb
     .from("submissions").select("*")
     .eq("submitter_id", me.id).order("created_at", { ascending: false }).limit(15);
@@ -92,16 +112,25 @@ export default async function Home() {
       <Nav role="submitter" />
       <div className="card text-center mb-6">
         <p className="label">Your balance</p>
-        <p className="display text-7xl text-white drop-shadow-[0_0_20px_rgba(214,90,122,0.6)]">{balance}</p>
-        <p className="text-blush/60 text-sm mt-2">Good girl.</p>
-        <div className="flex gap-3 justify-center mt-5">
+        <p className="display text-6xl sm:text-7xl text-white drop-shadow-[0_0_20px_rgba(214,90,122,0.6)]">
+          {balance}<span className="text-blush/40 text-3xl sm:text-4xl"> / {target}</span>
+        </p>
+        <div className="mt-4 max-w-xs mx-auto">
+          <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+            <div className="h-full bg-rose transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-blush/60 text-xs mt-2">
+            {balance >= target ? "Target reached. Good girl." : `${target - balance} to go.`}
+          </p>
+        </div>
+        <div className="flex gap-3 justify-center mt-5 flex-wrap">
           <Link href="/submit" className="btn-primary">Submit for points</Link>
           <Link href="/redeem" className="btn-ghost">Spend</Link>
         </div>
       </div>
 
       <div className="card mb-6">
-        <PointsChart data={chart} />
+        <PointsChart data={chart} target={target} />
       </div>
 
       <div className="card">

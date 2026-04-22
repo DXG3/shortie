@@ -129,6 +129,16 @@ export async function redeemReward(formData: FormData): Promise<void> {
   revalidatePath("/redeem");
 }
 
+export async function setPointsTarget(formData: FormData) {
+  await requireAdmin();
+  const submitterId = String(formData.get("submitter_id"));
+  const target = parseInt(String(formData.get("target") || "1"), 10);
+  if (!submitterId || !Number.isFinite(target) || target < 1) return;
+  const sb = supabaseAdmin();
+  await sb.from("profiles").update({ points_target: target }).eq("id", submitterId);
+  revalidatePath("/");
+}
+
 export async function inviteUser(formData: FormData) {
   await requireAdmin();
   const email = String(formData.get("email") || "").trim().toLowerCase();

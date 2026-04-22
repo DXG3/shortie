@@ -32,16 +32,22 @@ export default async function RewardsAdminPage() {
 
       <div className="space-y-3">
         {(rewards || []).map((r: any) => (
-          <form key={r.id} action={upsertReward} className="card flex flex-wrap items-center gap-3">
+          <form key={r.id} action={upsertReward} className="card space-y-3">
             <input type="hidden" name="id" value={r.id} />
-            <input name="name" defaultValue={r.name} className="input flex-1 min-w-[10rem]" />
-            <input name="cost" type="number" defaultValue={r.cost} className="input w-28" />
-            <input name="description" defaultValue={r.description || ""} className="input flex-1 min-w-[14rem]" />
-            <label className="flex items-center gap-2 text-blush/80 text-sm">
-              <input type="checkbox" name="active" defaultChecked={r.active} /> Active
-            </label>
-            <button className="btn-ghost">Save</button>
-            <button formAction={deleteReward} className="btn-ghost">Retire</button>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_6rem] gap-3">
+              <input name="name" defaultValue={r.name} className="input" />
+              <input name="cost" type="number" defaultValue={r.cost} className="input" />
+            </div>
+            <input name="description" defaultValue={r.description || ""} className="input" placeholder="Description" />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-blush/80 text-sm">
+                <input type="checkbox" name="active" defaultChecked={r.active} /> Active
+              </label>
+              <div className="flex gap-2">
+                <button className="btn-ghost">Save</button>
+                <button formAction={deleteReward} className="btn-ghost">Retire</button>
+              </div>
+            </div>
           </form>
         ))}
         {(rewards || []).length === 0 && <p className="text-blush/50">No rewards yet.</p>}

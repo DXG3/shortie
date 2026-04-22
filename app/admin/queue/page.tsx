@@ -37,14 +37,14 @@ export default async function QueuePage() {
                 </div>
                 <p className="display text-4xl text-white">{s.requested_points}</p>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <input name="awarded" type="number" placeholder="Amend to…" className="input" />
-                <input name="note" placeholder="Note (optional)" className="input col-span-2" />
+                <input name="note" placeholder="Note (optional)" className="input sm:col-span-2" />
               </div>
-              <div className="flex gap-2 mt-3">
-                <button name="decision" value="approved" className="btn-primary flex-1">Approve</button>
-                <button name="decision" value="amended" className="btn-ghost flex-1">Amend</button>
-                <button name="decision" value="declined" className="btn-ghost flex-1">Decline</button>
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                <button name="decision" value="approved" className="btn-primary">Approve</button>
+                <button name="decision" value="amended" className="btn-ghost">Amend</button>
+                <button name="decision" value="declined" className="btn-ghost">Decline</button>
               </div>
             </form>
           ))}
