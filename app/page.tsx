@@ -11,6 +11,20 @@ function fmtDay(d: Date) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+function sampleChart() {
+  // Fake but plausible 30-day story: slow climb, a dip (spend), climb to target+.
+  const nets = [0,0,1,0,2,0,0,1,0,2,0,1,0,0,2,0,1,0,-3,0,1,2,0,1,0,2,0,1,0,2];
+  const days: { day: string; net: number; running: number }[] = [];
+  let running = 0;
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const net = nets[29 - i] ?? 0;
+    running += net;
+    days.push({ day: fmtDay(d), net, running });
+  }
+  return days;
+}
+
 async function buildChart(submitterId: string) {
   const sb = supabaseAdmin();
   const { data } = await sb.from("daily_points").select("*").eq("submitter_id", submitterId);
@@ -110,6 +124,19 @@ export default async function Home() {
             <PointsChart data={chart} target={Number(submitter.points_target ?? 1)} />
           </div>
         ))}
+
+        {submitterCharts.length === 0 && (
+          <div className="card mb-6 relative">
+            <div className="flex items-baseline justify-between mb-3">
+              <h3 className="display text-2xl text-white/80">Example chart</h3>
+              <span className="text-blush/60 text-sm">target 10</span>
+            </div>
+            <p className="text-blush/50 text-xs mb-4">Preview only — invite a submitter and this fills with real data.</p>
+            <div className="opacity-80">
+              <PointsChart data={sampleChart()} target={10} />
+            </div>
+          </div>
+        )}
       </>
     );
   }
