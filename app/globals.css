@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+
+html, body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(184,20,60,0.25), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(107,10,36,0.35), transparent 55%),
+    #0a0608;
+  color: #f3c7d1;
+}
+
+body { font-family: var(--font-body, system-ui); }
+
+h1, h2, .display { font-family: var(--font-display, serif); letter-spacing: 0.01em; }
+
+.card {
+  @apply rounded-2xl border border-white/5 bg-black/40 backdrop-blur-sm p-6 shadow-glow;
+}
+.btn {
+  @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 font-medium transition;
+}
+.btn-primary {
+  @apply btn bg-rose text-white hover:bg-rose-soft hover:shadow-glow;
+}
+.btn-ghost {
+  @apply btn border border-white/10 text-blush/90 hover:border-rose-soft hover:text-white;
+}
+.input {
+  @apply w-full rounded-xl bg-black/50 border border-white/10 px-4 py-2.5 text-blush
+         placeholder:text-blush/40 focus:outline-none focus:border-rose-soft;
+}
+.label { @apply text-xs uppercase tracking-[0.2em] text-blush/60 mb-1.5 block; }
+.pill { @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium; }
+.pill-pending  { @apply pill bg-white/5 text-blush/70 border border-white/10; }
+.pill-approved { @apply pill bg-rose/20 text-blush border border-rose/40; }
+.pill-declined { @apply pill bg-black/60 text-white/50 border border-white/10 line-through; }
+.pill-amended  { @apply pill bg-rose-deep/40 text-blush border border-rose/40; }
