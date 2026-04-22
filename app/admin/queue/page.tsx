@@ -30,6 +30,9 @@ export default async function QueuePage() {
                   <p className="text-blush/60 text-xs">
                     {s.profiles?.display_name || s.profiles?.email} · {new Date(s.created_at).toLocaleString()}
                   </p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-rose-soft mt-1">
+                    {s.kind === "offer" ? "willing to do" : "feels she deserves"}
+                  </p>
                   <p className="text-blush mt-1">{s.reason}</p>
                 </div>
                 <p className="display text-4xl text-white">{s.requested_points}</p>

@@ -18,15 +18,34 @@ export async function submitRequest(formData: FormData) {
   const p = await requireSubmitter();
   const requested = parseInt(String(formData.get("points") || "0"), 10);
   const reason = String(formData.get("reason") || "").trim();
+  const kind = String(formData.get("kind") || "claim");
   if (!requested || requested <= 0 || !reason) return;
+  if (!["claim", "offer"].includes(kind)) return;
   const sb = supabaseServer();
   await sb.from("submissions").insert({
     submitter_id: p.id,
     requested_points: requested,
     reason,
+    kind,
     status: "pending",
   });
+  await notifyAdmin({ who: p.display_name || p.email, kind, points: requested, reason });
   revalidatePath("/");
+}
+
+async function notifyAdmin(payload: { who: string; kind: string; points: number; reason: string }) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  const verb = payload.kind === "claim" ? "feels she deserves" : "offers to earn";
+  const text = `*Good Girl Points* — new request\n\n*${payload.who}* ${verb} *${payload.points}* points:\n_${payload.reason}_`;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" }),
+    });
+  } catch {}
 }
 
 export async function decideSubmission(formData: FormData) {
