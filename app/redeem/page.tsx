@@ -1,6 +1,7 @@
 import { Nav } from "@/components/Nav";
 import { redeemReward, redeemForSubmitter } from "@/app/actions";
 import { currentProfile, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { getSessionBalance } from "@/lib/points";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -15,8 +16,7 @@ export default async function RedeemPage({ searchParams }: { searchParams: { for
   const { data: rewards } = await sb.from("rewards").select("*").eq("active", true).order("cost");
 
   if (me.role === "submitter") {
-    const { data: b } = await admin.from("point_balances").select("balance").eq("submitter_id", me.id).single();
-    const balance = Number(b?.balance ?? 0);
+    const balance = await getSessionBalance(me.id, me.session_start, me.session_end);
     return (
       <>
         <Nav role="submitter" />
@@ -37,8 +37,10 @@ export default async function RedeemPage({ searchParams }: { searchParams: { for
 
   // admin: pick a submitter, then spend on her behalf
   const { data: submitters } = await admin.from("profiles").select("*").eq("role", "submitter").order("created_at");
-  const { data: balances } = await admin.from("point_balances").select("*");
-  const balMap = new Map((balances || []).map((b: any) => [b.submitter_id, Number(b.balance)]));
+  const balanceEntries = await Promise.all(
+    (submitters || []).map(async (s: any) => [s.id, await getSessionBalance(s.id, s.session_start, s.session_end)] as const),
+  );
+  const balMap = new Map<string, number>(balanceEntries);
 
   const selectedId = searchParams.for && (submitters || []).some((s: any) => s.id === searchParams.for)
     ? searchParams.for

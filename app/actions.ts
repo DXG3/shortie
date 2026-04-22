@@ -153,6 +153,41 @@ export async function redeemReward(formData: FormData): Promise<void> {
   revalidatePath("/redeem");
 }
 
+export async function setSession(formData: FormData) {
+  await requireAdmin();
+  const submitterId = String(formData.get("submitter_id"));
+  const start = String(formData.get("session_start") || "") || null;
+  const end = String(formData.get("session_end") || "") || null;
+  if (!submitterId) return;
+  const sb = supabaseAdmin();
+  await sb.from("profiles").update({
+    session_start: start ? new Date(start).toISOString() : null,
+    session_end: end ? new Date(end).toISOString() : null,
+  }).eq("id", submitterId);
+  revalidatePath("/");
+  revalidatePath("/redeem");
+}
+
+export async function addMilestone(formData: FormData) {
+  await requireAdmin();
+  const submitterId = String(formData.get("submitter_id"));
+  const name = String(formData.get("name") || "").trim();
+  const points = parseInt(String(formData.get("points") || "0"), 10);
+  if (!submitterId || !name || !points || points <= 0) return;
+  const sb = supabaseAdmin();
+  await sb.from("milestones").insert({ submitter_id: submitterId, name, points });
+  revalidatePath("/");
+}
+
+export async function deleteMilestone(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+  if (!id) return;
+  const sb = supabaseAdmin();
+  await sb.from("milestones").delete().eq("id", id);
+  revalidatePath("/");
+}
+
 export async function setPointsTarget(formData: FormData) {
   await requireAdmin();
   const submitterId = String(formData.get("submitter_id"));
