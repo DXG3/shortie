@@ -34,10 +34,7 @@ export default async function RedeemPage() {
           return (
             <div key={r.id} className="card">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="display text-2xl text-white">{r.name}</h3>
-                  {r.description && <p className="text-blush/60 text-sm mt-1">{r.description}</p>}
-                </div>
+                <h3 className="display text-2xl text-white">{r.name}</h3>
                 <span className="pill-approved">{r.cost} pts</span>
               </div>
               {me.role === "submitter" && (
