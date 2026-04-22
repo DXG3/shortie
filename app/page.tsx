@@ -1,8 +1,9 @@
 import { currentProfile, supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 import { buildSessionChart, getSessionBalance, toLocalInput } from "@/lib/points";
+import { fetchRecentBotChats } from "@/lib/telegram";
 import { Nav } from "@/components/Nav";
 import { PointsChart } from "@/components/PointsChart";
-import { setSession, addMilestone, deleteMilestone } from "@/app/actions";
+import { setSession, addMilestone, deleteMilestone, setSubmitterTelegram } from "@/app/actions";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -54,6 +55,9 @@ export default async function Home() {
       })),
     );
 
+    const linkedChatIds = new Set((submitters || []).map((s: any) => s.telegram_chat_id).filter(Boolean));
+    const recentChats = (await fetchRecentBotChats()).filter((c) => !linkedChatIds.has(c.id));
+
     return (
       <>
         <Nav role="admin" />
@@ -91,6 +95,30 @@ export default async function Home() {
                   )}
                 </div>
               </div>
+
+              <form action={setSubmitterTelegram} className="flex flex-wrap items-end gap-2 mb-4">
+                <input type="hidden" name="submitter_id" value={submitter.id} />
+                <div className="flex-1 min-w-[10rem]">
+                  <label className="label">Her Telegram chat ID</label>
+                  <input name="telegram_chat_id" defaultValue={submitter.telegram_chat_id || ""}
+                    placeholder={recentChats[0] ? `e.g. ${recentChats[0].id} (${recentChats[0].name})` : "Ask her to DM @Shortie_pts_bot first"}
+                    className="input" />
+                </div>
+                <button className="btn-ghost">Save</button>
+                {submitter.telegram_chat_id && (
+                  <span className="text-rose-soft text-xs">✓ linked</span>
+                )}
+              </form>
+              {!submitter.telegram_chat_id && recentChats.length > 0 && (
+                <div className="mb-4 text-xs text-blush/60">
+                  Recent bot chats (click to copy id):
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {recentChats.map((c) => (
+                      <code key={c.id} className="px-2 py-1 rounded bg-white/5 text-blush">{c.id} · {c.name}</code>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <form action={setSession} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 mb-4">
                 <input type="hidden" name="submitter_id" value={submitter.id} />
@@ -157,6 +185,12 @@ export default async function Home() {
   return (
     <>
       <Nav role="submitter" />
+      {!me.agreement_signed_at && (
+        <Link href="/agreement" className="card mb-6 block text-center border-rose/40 hover:border-rose">
+          <p className="text-xs uppercase tracking-[0.3em] text-rose-soft">Before we begin</p>
+          <p className="display text-xl text-white mt-1">Sign the Sacred Scroll →</p>
+        </Link>
+      )}
       <div className="card text-center mb-6">
         <p className="label">Your points</p>
         <p className="display text-6xl sm:text-7xl text-white drop-shadow-[0_0_20px_rgba(214,90,122,0.6)]">{balance}</p>
