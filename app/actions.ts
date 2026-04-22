@@ -230,6 +230,25 @@ export async function inviteUser(formData: FormData) {
   revalidatePath("/admin/invites");
 }
 
+export async function askForReward(formData: FormData) {
+  const me = await requireSubmitter();
+  const name = String(formData.get("name") || "").trim();
+  const suggestedCost = String(formData.get("suggested_cost") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  if (!name) return;
+  const who = me.display_name || me.email;
+  const parts = [
+    `*Good Girl Points* — reward request`,
+    ``,
+    `*${who}* would like: *${name}*`,
+  ];
+  if (suggestedCost) parts.push(`Suggested cost: *${suggestedCost}*`);
+  if (note) parts.push(`_${note}_`);
+  const adminChat = process.env.TELEGRAM_CHAT_ID;
+  if (adminChat) await telegramSend(adminChat, parts.join("\n"));
+  revalidatePath("/redeem");
+}
+
 export async function signAgreement(formData: FormData) {
   const me = await requireSubmitter();
   const initials = String(formData.get("initials") || "").trim().toUpperCase();

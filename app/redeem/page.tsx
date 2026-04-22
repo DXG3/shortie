@@ -1,5 +1,5 @@
 import { Nav } from "@/components/Nav";
-import { redeemReward, redeemForSubmitter } from "@/app/actions";
+import { redeemReward, redeemForSubmitter, askForReward } from "@/app/actions";
 import { currentProfile, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { getSessionBalance } from "@/lib/points";
 import { redirect } from "next/navigation";
@@ -31,6 +31,19 @@ export default async function RedeemPage({ searchParams }: { searchParams: { for
           action={redeemReward}
           includeSubmitterIdField={false}
         />
+
+        <div className="card mt-6">
+          <p className="label mb-2">Don&apos;t see what you want?</p>
+          <p className="text-blush/60 text-sm mb-4">Ask for something new. He&apos;ll decide if it makes the catalogue.</p>
+          <form action={askForReward} className="space-y-3">
+            <div className="grid sm:grid-cols-[1fr_8rem] gap-3">
+              <input name="name" required placeholder="What are you asking for?" className="input" />
+              <input name="suggested_cost" placeholder="Suggested pts" className="input" />
+            </div>
+            <textarea name="note" rows={3} className="input" placeholder="A little note (optional)" />
+            <button className="btn-ghost w-full">Send wish</button>
+          </form>
+        </div>
       </>
     );
   }
