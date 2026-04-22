@@ -72,17 +72,17 @@ where p.role = 'submitter';
 create or replace view public.daily_points as
 select
   submitter_id,
-  d::date as day,
+  event_day as day,
   coalesce(sum(pts), 0)::int as net
 from (
-  select submitter_id, created_at::date as d, awarded_points as pts
+  select submitter_id, created_at::date as event_day, awarded_points as pts
     from public.submissions where status in ('approved','amended')
   union all
-  select submitter_id, created_at::date, -cost_at_redemption
+  select submitter_id, created_at::date as event_day, -cost_at_redemption as pts
     from public.redemptions
-) x, generate_series(current_date - interval '29 days', current_date, interval '1 day') d
-where x.d = d::date
-group by submitter_id, d::date;
+) x
+where event_day >= current_date - interval '29 days'
+group by submitter_id, event_day;
 
 -- enable RLS
 alter table public.profiles     enable row level security;
