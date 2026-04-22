@@ -52,10 +52,17 @@ export default async function Home() {
     const { data: balances } = await admin.from("point_balances").select("*");
     const balMap = new Map((balances || []).map((b: any) => [b.submitter_id, b.balance]));
 
+    const submitterCharts = await Promise.all(
+      (submitters || []).map(async (s: any) => ({
+        submitter: s,
+        chart: await buildChart(s.id),
+      })),
+    );
+
     return (
       <>
         <Nav role="admin" />
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div className="card">
             <p className="label">Pending requests</p>
             <p className="display text-5xl text-white">{pending?.length ?? 0}</p>
@@ -93,6 +100,16 @@ export default async function Home() {
             </ul>
           </div>
         </div>
+
+        {submitterCharts.map(({ submitter, chart }) => (
+          <div key={submitter.id} className="card mb-6">
+            <div className="flex items-baseline justify-between mb-3">
+              <h3 className="display text-2xl text-white">{submitter.display_name || submitter.email}</h3>
+              <span className="text-blush/60 text-sm">target {submitter.points_target ?? 1}</span>
+            </div>
+            <PointsChart data={chart} target={Number(submitter.points_target ?? 1)} />
+          </div>
+        ))}
       </>
     );
   }

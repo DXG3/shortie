@@ -107,6 +107,30 @@ export async function deleteReward(formData: FormData) {
   revalidatePath("/redeem");
 }
 
+export async function redeemForSubmitter(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const submitterId = String(formData.get("submitter_id"));
+  const rewardId = String(formData.get("reward_id"));
+  const note = String(formData.get("note") || "") || null;
+  if (!submitterId || !rewardId) return;
+
+  const sb = supabaseAdmin();
+  const { data: reward } = await sb.from("rewards").select("*").eq("id", rewardId).single();
+  if (!reward || !reward.active) return;
+
+  const { data: bal } = await sb.from("point_balances").select("balance").eq("submitter_id", submitterId).single();
+  if (!bal || bal.balance < reward.cost) return;
+
+  await sb.from("redemptions").insert({
+    submitter_id: submitterId,
+    reward_id: reward.id,
+    cost_at_redemption: reward.cost,
+    note,
+  });
+  revalidatePath("/");
+  revalidatePath("/redeem");
+}
+
 export async function redeemReward(formData: FormData): Promise<void> {
   const p = await requireSubmitter();
   const rewardId = String(formData.get("reward_id"));
