@@ -3,7 +3,7 @@ import { buildSessionChart, getSessionBalance, toLocalInput } from "@/lib/points
 import { fetchRecentBotChats } from "@/lib/telegram";
 import { Nav } from "@/components/Nav";
 import { PointsChart } from "@/components/PointsChart";
-import { setSession, addMilestone, deleteMilestone, setSubmitterTelegram } from "@/app/actions";
+import { setSession, addMilestone, deleteMilestone, setSubmitterTelegram, awardPoints } from "@/app/actions";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -84,83 +84,98 @@ export default async function Home() {
 
         {perSubmitter.map(({ submitter, milestones, balance, chart }) => {
           const hasSession = !!submitter.session_start && !!submitter.session_end;
+          const displayName = submitter.nickname || submitter.display_name || submitter.email;
           return (
-            <div key={submitter.id} className="card mb-6">
-              <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-                <h3 className="display text-2xl text-white">{submitter.display_name || submitter.email}</h3>
-                <div className="flex items-baseline gap-3">
-                  <span className="display text-3xl text-white">{balance}</span>
-                  {hasSession && (
-                    <span className="text-blush/60 text-xs">{timeLeft(submitter.session_end)}</span>
+            <div key={submitter.id} className="card mb-6 space-y-5">
+              <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 className="display text-2xl text-white">{displayName}</h3>
+                  {submitter.safe_word && (
+                    <p className="text-blush/50 text-xs">safe word: <span className="text-blush">{submitter.safe_word}</span></p>
                   )}
                 </div>
+                <div className="text-right">
+                  <p className="display text-3xl text-white leading-none">{balance}</p>
+                  {hasSession && <p className="text-blush/60 text-xs mt-1">{timeLeft(submitter.session_end)}</p>}
+                </div>
               </div>
 
-              <form action={setSubmitterTelegram} className="flex flex-wrap items-end gap-2 mb-4">
+              <form action={awardPoints} className="border border-rose/30 rounded-xl p-3 space-y-2">
+                <p className="label">Award points directly</p>
                 <input type="hidden" name="submitter_id" value={submitter.id} />
-                <div className="flex-1 min-w-[10rem]">
-                  <label className="label">Her Telegram chat ID</label>
-                  <input name="telegram_chat_id" defaultValue={submitter.telegram_chat_id || ""}
-                    placeholder={recentChats[0] ? `e.g. ${recentChats[0].id} (${recentChats[0].name})` : "Ask her to DM @Shortie_pts_bot first"}
-                    className="input" />
+                <div className="grid grid-cols-[5rem_1fr] gap-2">
+                  <input name="points" type="number" placeholder="±pts" required className="input" />
+                  <input name="reason" placeholder="Because…" required className="input" />
                 </div>
-                <button className="btn-ghost">Save</button>
-                {submitter.telegram_chat_id && (
-                  <span className="text-rose-soft text-xs">✓ linked</span>
-                )}
-              </form>
-              {!submitter.telegram_chat_id && recentChats.length > 0 && (
-                <div className="mb-4 text-xs text-blush/60">
-                  Recent bot chats (click to copy id):
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {recentChats.map((c) => (
-                      <code key={c.id} className="px-2 py-1 rounded bg-white/5 text-blush">{c.id} · {c.name}</code>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <form action={setSession} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 mb-4">
-                <input type="hidden" name="submitter_id" value={submitter.id} />
-                <div>
-                  <label className="label">Session start</label>
-                  <input name="session_start" type="datetime-local"
-                    defaultValue={toLocalInput(submitter.session_start)} className="input" />
-                </div>
-                <div>
-                  <label className="label">Session end</label>
-                  <input name="session_end" type="datetime-local"
-                    defaultValue={toLocalInput(submitter.session_end)} className="input" />
-                </div>
-                <div className="self-end">
-                  <button className="btn-ghost w-full">Save window</button>
-                </div>
+                <button className="btn-primary w-full">Send & notify her</button>
               </form>
 
-              <div className="mb-4">
-                <p className="label mb-2">Milestones</p>
-                <div className="space-y-2 mb-2">
-                  {milestones.map((m: any) => (
-                    <form key={m.id} action={deleteMilestone} className="flex items-center gap-3 text-sm">
-                      <input type="hidden" name="id" value={m.id} />
-                      <span className="text-blush flex-1 truncate">{m.name}</span>
-                      <span className="display text-lg text-white">{m.points}</span>
-                      <button className="btn-ghost py-1 px-3 text-xs">Remove</button>
+              <details className="border-t border-white/5 pt-4">
+                <summary className="cursor-pointer text-blush/80 text-sm select-none">Session, milestones & settings</summary>
+                <div className="mt-4 space-y-5">
+
+                  <form action={setSession} className="space-y-2">
+                    <input type="hidden" name="submitter_id" value={submitter.id} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="label">Session start</label>
+                        <input name="session_start" type="datetime-local"
+                          defaultValue={toLocalInput(submitter.session_start)} className="input" />
+                      </div>
+                      <div>
+                        <label className="label">Session end</label>
+                        <input name="session_end" type="datetime-local"
+                          defaultValue={toLocalInput(submitter.session_end)} className="input" />
+                      </div>
+                    </div>
+                    <button className="btn-ghost w-full">Save window</button>
+                  </form>
+
+                  <div>
+                    <p className="label mb-2">Milestones</p>
+                    <div className="space-y-2 mb-2">
+                      {milestones.map((m: any) => (
+                        <form key={m.id} action={deleteMilestone} className="flex items-center gap-3 text-sm">
+                          <input type="hidden" name="id" value={m.id} />
+                          <span className="text-blush flex-1 truncate">{m.name}</span>
+                          <span className="display text-lg text-white">{m.points}</span>
+                          <button className="btn-ghost py-1 px-3 text-xs">Remove</button>
+                        </form>
+                      ))}
+                    </div>
+                    <form action={addMilestone} className="grid grid-cols-[1fr_5rem_auto] gap-2">
+                      <input type="hidden" name="submitter_id" value={submitter.id} />
+                      <input name="name" placeholder="Milestone" className="input" required />
+                      <input name="points" type="number" min={1} placeholder="Pts" className="input" required />
+                      <button className="btn-ghost">Add</button>
                     </form>
-                  ))}
+                  </div>
+
+                  <form action={setSubmitterTelegram} className="space-y-2">
+                    <input type="hidden" name="submitter_id" value={submitter.id} />
+                    <label className="label">Her Telegram chat ID {submitter.telegram_chat_id && <span className="text-rose-soft normal-case tracking-normal ml-2">✓ linked</span>}</label>
+                    <input name="telegram_chat_id" defaultValue={submitter.telegram_chat_id || ""}
+                      placeholder={recentChats[0] ? `e.g. ${recentChats[0].id} (${recentChats[0].name})` : "Ask her to DM @Shortie_pts_bot"}
+                      className="input" />
+                    <button className="btn-ghost w-full">Save Telegram</button>
+                    {!submitter.telegram_chat_id && recentChats.length > 0 && (
+                      <div className="text-xs text-blush/60 pt-1">
+                        <p className="mb-1">Recent bot chats:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {recentChats.map((c) => (
+                            <code key={c.id} className="px-2 py-1 rounded bg-white/5 text-blush">{c.id} · {c.name}</code>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </form>
                 </div>
-                <form action={addMilestone} className="flex flex-wrap gap-2">
-                  <input type="hidden" name="submitter_id" value={submitter.id} />
-                  <input name="name" placeholder="Milestone name" className="input flex-1 min-w-[10rem]" required />
-                  <input name="points" type="number" min={1} placeholder="Points" className="input w-28" required />
-                  <button className="btn-ghost">Add</button>
-                </form>
-              </div>
+              </details>
 
               {hasSession ? (
                 <PointsChart data={chart} milestones={milestones.map((m: any) => ({ id: m.id, name: m.name, points: m.points }))} />
               ) : (
-                <p className="text-blush/50 text-sm">Set a session window to see the chart.</p>
+                <p className="text-blush/50 text-sm">Set a session window in settings to see the chart.</p>
               )}
             </div>
           );
@@ -186,9 +201,15 @@ export default async function Home() {
     <>
       <Nav role="submitter" />
       {!me.agreement_signed_at && (
-        <Link href="/agreement" className="card mb-6 block text-center border-rose/40 hover:border-rose">
+        <Link href="/agreement" className="card mb-4 block text-center border-rose/40 hover:border-rose">
           <p className="text-xs uppercase tracking-[0.3em] text-rose-soft">Before we begin</p>
           <p className="display text-xl text-white mt-1">Sign the Sacred Scroll →</p>
+        </Link>
+      )}
+      {(!me.nickname || !me.safe_word || !me.telegram_chat_id) && (
+        <Link href="/setup" className="card mb-6 block text-center border-rose/40 hover:border-rose">
+          <p className="text-xs uppercase tracking-[0.3em] text-rose-soft">Your little details</p>
+          <p className="display text-xl text-white mt-1">Nickname · safe word · Telegram →</p>
         </Link>
       )}
       <div className="card text-center mb-6">

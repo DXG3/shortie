@@ -29,7 +29,9 @@ export async function submitRequest(formData: FormData) {
     kind,
     status: "pending",
   });
-  await notifyAdmin({ who: p.display_name || p.email, kind, points: requested, reason });
+  const who = p.nickname || p.display_name || p.email;
+  const verb = kind === "claim" ? "feels she deserves" : "offers to earn";
+  await notifyAdmin(`*New request*\n\n*${who}* ${verb} *${requested}* points:\n_${reason}_`);
   revalidatePath("/");
 }
 
@@ -45,11 +47,9 @@ async function telegramSend(chatId: string, text: string) {
   } catch {}
 }
 
-async function notifyAdmin(payload: { who: string; kind: string; points: number; reason: string }) {
+async function notifyAdmin(text: string) {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!chatId) return;
-  const verb = payload.kind === "claim" ? "feels she deserves" : "offers to earn";
-  const text = `*Good Girl Points* — new request\n\n*${payload.who}* ${verb} *${payload.points}* points:\n_${payload.reason}_`;
   await telegramSend(chatId, text);
 }
 
@@ -159,8 +159,10 @@ export async function redeemReward(formData: FormData): Promise<void> {
   const { data: reward } = await sb.from("rewards").select("*").eq("id", rewardId).single();
   if (!reward || !reward.active) return;
 
-  const { data: bal } = await sb.from("point_balances").select("balance").eq("submitter_id", p.id).single();
-  if (!bal || bal.balance < reward.cost) return;
+  // session-scoped affordability check
+  const { getSessionBalance } = await import("@/lib/points");
+  const bal = await getSessionBalance(p.id, p.session_start, p.session_end);
+  if (bal < reward.cost) return;
 
   await sb.from("redemptions").insert({
     submitter_id: p.id,
@@ -168,6 +170,10 @@ export async function redeemReward(formData: FormData): Promise<void> {
     cost_at_redemption: reward.cost,
     note,
   });
+  const who = p.nickname || p.display_name || p.email;
+  let msg = `*Spent*\n\n*${who}* redeemed *${reward.name}* for *${reward.cost}* pts.`;
+  if (note) msg += `\n_${note}_`;
+  await notifyAdmin(msg);
   revalidatePath("/");
   revalidatePath("/redeem");
 }
@@ -236,16 +242,11 @@ export async function askForReward(formData: FormData) {
   const suggestedCost = String(formData.get("suggested_cost") || "").trim();
   const note = String(formData.get("note") || "").trim();
   if (!name) return;
-  const who = me.display_name || me.email;
-  const parts = [
-    `*Good Girl Points* — reward request`,
-    ``,
-    `*${who}* would like: *${name}*`,
-  ];
+  const who = me.nickname || me.display_name || me.email;
+  const parts = [`*Reward wish*`, ``, `*${who}* would like: *${name}*`];
   if (suggestedCost) parts.push(`Suggested cost: *${suggestedCost}*`);
   if (note) parts.push(`_${note}_`);
-  const adminChat = process.env.TELEGRAM_CHAT_ID;
-  if (adminChat) await telegramSend(adminChat, parts.join("\n"));
+  await notifyAdmin(parts.join("\n"));
   revalidatePath("/redeem");
 }
 
@@ -260,6 +261,44 @@ export async function signAgreement(formData: FormData) {
   }).eq("id", me.id);
   revalidatePath("/agreement");
   revalidatePath("/");
+}
+
+export async function awardPoints(formData: FormData) {
+  await requireAdmin();
+  const admin = await currentProfile();
+  const submitterId = String(formData.get("submitter_id"));
+  const points = parseInt(String(formData.get("points") || "0"), 10);
+  const reason = String(formData.get("reason") || "").trim();
+  if (!submitterId || !points || !reason) return;
+  const sb = supabaseAdmin();
+  await sb.from("submissions").insert({
+    submitter_id: submitterId,
+    requested_points: Math.abs(points),
+    awarded_points: points,
+    reason,
+    kind: "claim",
+    status: points >= 0 ? "approved" : "amended",
+    decided_by: admin!.id,
+    decided_at: new Date().toISOString(),
+  });
+  await notifySubmitterOfDecision(submitterId, points >= 0 ? "approved" : "amended", points, reason);
+  revalidatePath("/");
+}
+
+export async function setSubmitterProfile(formData: FormData) {
+  const me = await requireSubmitter();
+  const nickname = String(formData.get("nickname") || "").trim() || null;
+  const safeWord = String(formData.get("safe_word") || "").trim() || null;
+  const chatId = String(formData.get("telegram_chat_id") || "").trim() || null;
+  const sb = supabaseAdmin();
+  await sb.from("profiles").update({
+    nickname, safe_word: safeWord, telegram_chat_id: chatId,
+  }).eq("id", me.id);
+  if (chatId) {
+    await telegramSend(chatId, `You&#39;re linked. You&#39;ll get pings here when he decides on your requests. Good girl.`);
+  }
+  revalidatePath("/");
+  revalidatePath("/setup");
 }
 
 export async function setSubmitterTelegram(formData: FormData) {

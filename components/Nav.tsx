@@ -8,6 +8,7 @@ export function Nav({ role }: { role: "admin" | "submitter" }) {
       {role === "submitter" && <Link href="/submit" className="btn-ghost">Earn</Link>}
       <Link href="/redeem" className="btn-ghost">Spend</Link>
       <Link href="/agreement" className="btn-ghost">Scroll</Link>
+      {role === "submitter" && <Link href="/setup" className="btn-ghost">Me</Link>}
       {role === "admin" && (
         <>
           <Link href="/admin/queue" className="btn-ghost">Queue</Link>
