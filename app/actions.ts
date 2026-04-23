@@ -314,6 +314,33 @@ export async function setSubmitterTelegram(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function deleteUser(formData: FormData) {
+  await requireAdmin();
+  const me = await currentProfile();
+  const userId = String(formData.get("user_id") || "");
+  if (!userId) return;
+  if (me && userId === me.id) return; // never delete self
+
+  const sb = supabaseAdmin();
+  // Also clear the invite row so the email can be re-invited cleanly.
+  const { data: p } = await sb.from("profiles").select("email").eq("id", userId).single();
+  if (p?.email) await sb.from("invites").delete().eq("email", p.email);
+  // Delete from auth — profile row cascades via on delete cascade.
+  await sb.auth.admin.deleteUser(userId);
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/invites");
+  revalidatePath("/");
+}
+
+export async function setAppTitle(formData: FormData) {
+  await requireAdmin();
+  const title = String(formData.get("title") || "").trim();
+  if (!title || title.length > 60) return;
+  const sb = supabaseAdmin();
+  await sb.from("app_settings").upsert({ key: "title", value: title, updated_at: new Date().toISOString() });
+  revalidatePath("/", "layout");
+}
+
 export async function signOut() {
   const sb = supabaseServer();
   await sb.auth.signOut();
