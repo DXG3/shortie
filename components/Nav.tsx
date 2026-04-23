@@ -15,6 +15,7 @@ export function Nav({ role }: { role: "admin" | "submitter" }) {
           <Link href="/admin/rewards" className="btn-ghost">Rewards</Link>
           <Link href="/admin/invites" className="btn-ghost">Invites</Link>
           <Link href="/admin/users" className="btn-ghost">Users</Link>
+          <Link href="/admin/activity" className="btn-ghost">Activity</Link>
         </>
       )}
       <form action={signOut}>

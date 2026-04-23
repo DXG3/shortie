@@ -23,6 +23,31 @@ export async function middleware(req: NextRequest) {
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
+
+  // Invisible activity log — only for authed users, non-auth pages, and HTML navigations.
+  const accept = req.headers.get("accept") || "";
+  const looksLikeHtml = accept.includes("text/html") || accept === "" || accept === "*/*";
+  const isAsset = /\.(ico|png|jpg|jpeg|svg|webp|avif|css|js|map|woff2?|ttf)$/i.test(pathname);
+  if (user && !isAuthPage && looksLikeHtml && !isAsset) {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (serviceKey && supaUrl) {
+      const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || null;
+      const ua = req.headers.get("user-agent") || null;
+      // fire-and-forget
+      fetch(`${supaUrl}/rest/v1/activity_log`, {
+        method: "POST",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ user_id: user.id, path: pathname, ip, ua }),
+      }).catch(() => {});
+    }
+  }
+
   return res;
 }
 
