@@ -1,24 +1,45 @@
 "use client";
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [stage, setStage] = useState<"email" | "code">("email");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent) {
+  async function sendCode(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setError(null);
     const sb = supabaseBrowser();
     const { error } = await sb.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        shouldCreateUser: true,
+      },
     });
     setBusy(false);
-    if (error) setError(error.message);
-    else setSent(true);
+    if (error) { setError(error.message); return; }
+    setStage("code");
+  }
+
+  async function verify(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    const sb = supabaseBrowser();
+    const { error } = await sb.auth.verifyOtp({
+      email,
+      token: code.trim(),
+      type: "email",
+    });
+    setBusy(false);
+    if (error) { setError(error.message); return; }
+    router.replace("/");
+    router.refresh();
   }
 
   return (
@@ -26,10 +47,9 @@ export default function LoginPage() {
       <div className="card">
         <h2 className="display text-3xl text-white mb-2">Come in</h2>
         <p className="text-blush/60 text-sm mb-6">By invitation only.</p>
-        {sent ? (
-          <p className="text-blush">Check your inbox. The magic link will bring you home.</p>
-        ) : (
-          <form onSubmit={submit} className="space-y-4">
+
+        {stage === "email" && (
+          <form onSubmit={sendCode} className="space-y-4">
             <div>
               <label className="label">Email</label>
               <input className="input" type="email" required
@@ -37,7 +57,37 @@ export default function LoginPage() {
             </div>
             {error && <p className="text-sm text-rose-soft">{error}</p>}
             <button className="btn-primary w-full" disabled={busy}>
-              {busy ? "Sending..." : "Send magic link"}
+              {busy ? "Sending..." : "Send code"}
+            </button>
+          </form>
+        )}
+
+        {stage === "code" && (
+          <form onSubmit={verify} className="space-y-4">
+            <p className="text-blush/80 text-sm">
+              Check your inbox at <span className="text-white">{email}</span>.<br />
+              Enter the 6-digit code from the email below — ignore the link, it can be flaky on phones.
+            </p>
+            <div>
+              <label className="label">6-digit code</label>
+              <input
+                className="input text-center text-2xl tracking-[0.5em] font-mono"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
+            {error && <p className="text-sm text-rose-soft">{error}</p>}
+            <button className="btn-primary w-full" disabled={busy || code.length !== 6}>
+              {busy ? "Verifying..." : "Let me in"}
+            </button>
+            <button type="button" onClick={() => { setStage("email"); setCode(""); setError(null); }}
+              className="text-blush/60 text-xs underline w-full">
+              Use a different email
             </button>
           </form>
         )}
