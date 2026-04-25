@@ -66,23 +66,23 @@ export default function LoginPage() {
           <form onSubmit={verify} className="space-y-4">
             <p className="text-blush/80 text-sm">
               Check your inbox at <span className="text-white">{email}</span>.<br />
-              Enter the 6-digit code from the email below — ignore the link, it can be flaky on phones.
+              Enter the code from the email below — ignore the link, it can be flaky on phones.
             </p>
             <div>
-              <label className="label">6-digit code</label>
+              <label className="label">Code from email</label>
               <input
-                className="input text-center text-2xl tracking-[0.5em] font-mono"
+                className="input text-center text-2xl tracking-[0.4em] font-mono"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                pattern="[0-9]{6}"
-                maxLength={6}
+                pattern="[0-9]{6,10}"
+                maxLength={10}
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               />
             </div>
             {error && <p className="text-sm text-rose-soft">{error}</p>}
-            <button className="btn-primary w-full" disabled={busy || code.length !== 6}>
+            <button className="btn-primary w-full" disabled={busy || code.length < 6}>
               {busy ? "Verifying..." : "Let me in"}
             </button>
             <button type="button" onClick={() => { setStage("email"); setCode(""); setError(null); }}
