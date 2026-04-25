@@ -47,12 +47,44 @@ export default async function Home() {
     }
 
     const perSubmitter = await Promise.all(
-      (submitters || []).map(async (s: any) => ({
-        submitter: s,
-        milestones: milestonesBy.get(s.id) || [],
-        balance: await getSessionBalance(s.id, s.session_start, s.session_end),
-        chart: await buildSessionChart(s.id, s.session_start, s.session_end),
-      })),
+      (submitters || []).map(async (s: any) => {
+        const startIso = s.session_start ? new Date(s.session_start).toISOString() : new Date(0).toISOString();
+        const endIso   = s.session_end   ? new Date(s.session_end).toISOString()   : new Date().toISOString();
+        const [{ data: subs }, { data: reds }] = await Promise.all([
+          admin.from("submissions")
+            .select("id, awarded_points, requested_points, reason, status, kind, created_at")
+            .eq("submitter_id", s.id)
+            .gte("created_at", startIso).lt("created_at", endIso)
+            .order("created_at", { ascending: false })
+            .limit(15),
+          admin.from("redemptions")
+            .select("id, cost_at_redemption, note, created_at, rewards(name)")
+            .eq("submitter_id", s.id)
+            .gte("created_at", startIso).lt("created_at", endIso)
+            .order("created_at", { ascending: false })
+            .limit(15),
+        ]);
+        const txns = [
+          ...((subs || []) as any[]).map((r) => ({
+            id: r.id, ts: r.created_at, kind: "earn" as const,
+            label: r.reason, points: r.status === "declined" ? 0 : (r.awarded_points ?? r.requested_points),
+            status: r.status,
+          })),
+          ...((reds || []) as any[]).map((r) => ({
+            id: r.id, ts: r.created_at, kind: "spend" as const,
+            label: `Redeemed ${r.rewards?.name || "reward"}${r.note ? ` — ${r.note}` : ""}`,
+            points: -r.cost_at_redemption, status: "spent",
+          })),
+        ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 15);
+
+        return {
+          submitter: s,
+          milestones: milestonesBy.get(s.id) || [],
+          balance: await getSessionBalance(s.id, s.session_start, s.session_end),
+          chart: await buildSessionChart(s.id, s.session_start, s.session_end),
+          txns,
+        };
+      }),
     );
 
     const linkedChatIds = new Set((submitters || []).map((s: any) => s.telegram_chat_id).filter(Boolean));
@@ -82,7 +114,7 @@ export default async function Home() {
           </div>
         )}
 
-        {perSubmitter.map(({ submitter, milestones, balance, chart }) => {
+        {perSubmitter.map(({ submitter, milestones, balance, chart, txns }) => {
           const hasSession = !!submitter.session_start && !!submitter.session_end;
           const displayName = submitter.nickname || submitter.display_name || submitter.email;
           return (
@@ -177,6 +209,27 @@ export default async function Home() {
               ) : (
                 <p className="text-blush/50 text-sm">Set a session window in settings to see the chart.</p>
               )}
+
+              <div className="border-t border-white/5 pt-4">
+                <p className="label mb-2">Recent transactions ({txns.length})</p>
+                {txns.length === 0 ? (
+                  <p className="text-blush/50 text-sm">None this session yet.</p>
+                ) : (
+                  <ul className="divide-y divide-white/5 text-sm">
+                    {txns.map((t: any) => (
+                      <li key={`${t.kind}-${t.id}`} className="py-2 flex items-baseline gap-3">
+                        <span className="text-blush/40 text-xs w-20 shrink-0">
+                          {new Date(t.ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span className="flex-1 text-blush truncate">{t.label}</span>
+                        <span className={`display text-lg ${t.points > 0 ? "text-white" : t.points < 0 ? "text-rose-soft" : "text-blush/40"}`}>
+                          {t.points > 0 ? `+${t.points}` : t.points}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           );
         })}
